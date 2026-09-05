@@ -1,0 +1,13 @@
+# ═══════════════════════════════════════════════════════════════════════
+#  배포/export (06 §5.0, 정정 A-13)
+#  ★ 현 venv 에 **하나도 설치되어 있지 않다**. 미설치 상태에서
+#    tools/export.py 는 조용히 통과하지 않고 명시적으로 실패한다(06 §5.0 격리 규칙 2).
+#  ★ 인터넷이 없는 환경이면 오프라인 wheel 확보가 선행 과제다 (06 §7.3 B5).
+#  ★ tensorrt 는 Jetson 이미지에 포함되므로 여기 넣지 않는다.
+# ═══════════════════════════════════════════════════════════════════════
+-r requirements.txt
+onnx
+onnxscript       # torch 2.13 dynamo exporter 경로 (기본 경로는 use_dynamo=false, 정정 A-29)
+onnxruntime
+onnxsim          # 04 §9.4 step 3 — 단순화 후 Shape/Gather 0개 검사
+polygraphy       # 04 §9.4 step 4 — ORT vs TRT 대조

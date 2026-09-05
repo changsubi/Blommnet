@@ -1,0 +1,70 @@
+# ═══════════════════════════════════════════════════════════════════════
+#  BloomNet — 패키지 정의 + 정적 검사/테스트 설정 (06 §2.1)
+#
+#  ★ 레이아웃 주의: 이 파일이 있는 디렉터리(`k_water/bloomnet/`) 가 곧 **파이썬 패키지**
+#    `bloomnet` 이다. 따라서 import 루트는 **부모 디렉터리** `<repo_root>` 이며,
+#    모든 명령은 거기서 실행한다:
+#         cd <repo_root> && python -m bloomnet.tools.train ...
+#         cd <repo_root> && python -m pytest bloomnet/tests -q
+#
+#  ★ 설치는 이 환경의 워크플로가 아니다 — venv 는 이전 구현과 공유하며
+#    헌법 C-5.3 이 인터넷 의존을 금지한다. 아래 [project] 는 의존성 계약의 선언이고,
+#    실제로 쓰이는 것은 [tool.ruff] 와 [tool.pytest.ini_options] 다.
+# ═══════════════════════════════════════════════════════════════════════
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bloomnet"
+version = "0.1.0"
+description = "BloomNet — 녹조 영역 segmentation + 픽셀별 Chl-a 회귀 (K-water T1)"
+requires-python = ">=3.9"
+dependencies = [
+    "torch>=2.0",
+    "torchvision",
+    "numpy",
+    "pillow",
+    "pyyaml",
+    "tqdm",
+    "scipy",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov", "ruff"]
+deploy = ["onnx", "onnxscript", "onnxruntime", "onnxsim", "polygraphy"]
+
+# 패키지 루트가 이 디렉터리 자신이므로 명시 매핑한다 (flat-layout 자동탐지 금지).
+[tool.setuptools]
+package-dir = { "bloomnet" = "." }
+
+[tool.setuptools.packages.find]
+where = [".."]
+include = ["bloomnet*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+bloomnet = ["configs/*.yaml", "configs/ablation/*.yaml"]
+
+# ─── 정적 검사 ──────────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+exclude = [".venv", "outputs", "data", ".pytest_tmp"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+    "E501",   # 줄 길이는 formatter 가 아니라 line-length 로만 관리한다
+    "B008",   # dataclass field(default_factory=...) 패턴과 충돌
+]
+
+# ─── 테스트 (06 §5.3 CI 게이트) ─────────────────────────────────────────
+#   필수:      pytest -q -m "not data and not slow"      목표 < 30 s
+#   데이터:    pytest -q -m data                         aihub092 / 235 존재 시
+#   느린 것:   pytest -q -m slow                         onnx export
+[tool.pytest.ini_options]
+markers = [
+    "data: 실데이터(aihub092 / 235 / M3M) 접근이 필요한 테스트. 경로 부재 시 skip",
+    "slow: onnx export 등 느린 테스트. 필수 게이트에서 제외",
+]
