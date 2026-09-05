@@ -1,6 +1,6 @@
 # BloomNet
 
-녹조 영역 segmentation + 픽셀별 Chl-a 회귀 (K-water T1, DGIST 담당).
+녹조 영역 segmentation + 픽셀별 Chl-a 회귀.
 
 - 설계 헌법: [`methods/spec/00_설계헌법.md`](../methods/spec/00_설계헌법.md) — **모든 코드가 따라야 하는 규약**
 - API 동결표: [`methods/spec/06_매니페스트_API.md`](../methods/spec/06_매니페스트_API.md)
@@ -33,7 +33,7 @@ k_water/
 
 ## 1. 설치
 
-의존성은 3분할이다 (06 §5.0, 정정 A-13).
+의존성은 3분할이다.
 
 | 파일 | 용도 | 현 상태 |
 |---|---|---|
@@ -88,7 +88,7 @@ python -m bloomnet.tools.build_k235_cache --out data/cache/k235_ms.npz
 
 ## 3. 학습
 
-### 3.1 S0-RGB — AI Hub 092 도메인 근접 사전학습 (오늘 실행 가능)
+### 3.1 S0-RGB — AI Hub 092 도메인 근접 사전학습
 
 ```bash
 cd <repo_root>
@@ -106,7 +106,7 @@ CUDA_VISIBLE_DEVICES=0 python -m bloomnet.tools.train \
 > 절대값이 아니라 `warmup_epochs`·`epochs` 에서 런타임 유도되므로 B 를 바꿔도 따라간다
 > (정정 A-18 / B-26).
 
-### 3.2 S0-Spec — 235 칩 Chl-a 회귀 (CPU, 오늘 실행 가능)
+### 3.2 S0-Spec — 235 칩 Chl-a 회귀
 
 ```bash
 cd <repo_root>
@@ -254,21 +254,3 @@ python -m bloomnet.tools.train --config s1_rgb_ms4 --print_config
 | V12/V18 | 이식은 `bio.source==msi ∧ kind==mci ∧ band_order_confirmed` 일 때만 |
 | V19 | `1 ∈ model.bmef.stages` 필수. stage1 제외 ablation 은 `bmef.stage1_identity: true` |
 | V21 | `sensor != none ⟹ msi.k_sensor > 0` |
-
-## 9. 절대 하지 말 것 (06 §10 요약 카드)
-
-1. GPU 사용 (헌법 C-5.2)
-2. `msi`/`bio`/`ir`/`pol` 에 광도 증강
-3. 라벨을 nearest 로 다운샘플 (로짓을 라벨 해상도로 올린다)
-4. BMEF 융합부를 fp16 으로 실행 (`w_min = 3.07e-6` 은 fp16 subnormal)
-5. `(B,3,C,H,W)` softmax 텐서 materialize
-6. `exp(A−amax)` 에서 `clamp(max=0)` 생략
-7. `AdaptiveAvgPool2d(1)` 사용 (→ `x.mean`)
-8. **export 그래프에서** `F.interpolate(size=…)` (학습 경로에서는 `size=` 가 정본)
-9. `bio` 를 기하변환 **전에** 계산
-10. 편광 flip 시 AoLP 변환 생략
-11. mIoU 를 `union==0` 포함으로 계산
-12. `best_epoch_*.pt` 누적 저장 (`best.pt`/`last.pt` 2개만)
-13. `torch.expm1` 사용 (ONNX 미지원 → `exp(u)−1`)
-14. `msi` 를 R4′(`k_sensor`) 없이 학습에 투입
-15. hot path 에서 `.any()`/`.max()` 파이썬 bool 변환
