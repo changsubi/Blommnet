@@ -1,0 +1,5 @@
+# A1 (05 §5.1.7) — batch soft-Dice 기여 검증.  w_dice 0.4 vs 0.0
+# 채택 조건: val mIoU 및 희소 클래스(7,8,9,11) IoU 평균이 개선되면 0.4 유지.
+_base: ../s0_rgb_aihub092.yaml
+loss:
+  w_dice: 0.0

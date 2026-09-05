@@ -1,0 +1,42 @@
+# K-water 녹조 수역 미세조정 (S0-RGB 가중치에서 시작, 3클래스: 배경/물/녹조 수역)
+# 라벨: scripts/kwater/make_pseudo_labels.py 로 만든 가상 라벨 (SAM3 'water' 마스크 + 녹색도 규칙)
+_base: _base.yaml
+mode: s0_rgb
+data:
+  dataset: aihub092
+  root: data/pseudo                 # scripts/kwater/make_pseudo_labels.py 출력 (--set data.root=... 로 변경)
+  split_variant: group
+  num_classes: 3
+  modalities: [rgb]
+  sensor: none
+  train_size: [512, 512]
+  eval_size: [512, 512]
+  num_workers: 16
+  pin_memory: false
+  prefetch_factor: 2
+  boundary:
+    source: criterion
+  sampler:
+    kind: shuffle
+    class_stats: null
+  augment:
+    geometric:
+      scale_range: [0.75, 1.5]
+      cat_max_ratio: 0.9
+loss:
+  ohem_thresh: 0.7
+optim:
+  lr: 1.0e-4
+  lr_encoder: 5.0e-5
+schedule:
+  epochs: 30
+  batch_size: 16
+  warmup_epochs: 1
+train:
+  amp: bf16
+  init_from: null                   # S0 사전학습 체크포인트 (--set train.init_from=<path.pt>)
+  deterministic: false
+  ema:
+    start_epoch: 3
+  early_stopping:
+    patience: 8

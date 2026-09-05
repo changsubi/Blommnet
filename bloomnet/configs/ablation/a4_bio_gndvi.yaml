@@ -1,0 +1,9 @@
+# A4 (X-01 / X-27 대조군) — x_bio 두 번째 채널을 MCI_norm 대신 GNDVI 로.
+# 근거: 01 [M7] 8-site pooled r(log Chla) = MCI_norm +0.340 (8/8 부호일치) > GNDVI +0.179 (6/8).
+#       기각된 근거 r=0.755 는 BES 단일 site 내부 상관이었다 (정정 B-3).
+# ★ S1 기반이다 — bio 는 msi 의 부속이므로(V5/V16) S0-RGB 위에서는 켤 수 없다.
+_base: ../s1_rgb_ms4.yaml
+data:
+  bio:
+    kind: gndvi
+    source: msi

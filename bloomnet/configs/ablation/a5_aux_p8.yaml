@@ -1,0 +1,6 @@
+# A5 (X-06 대조군) — deep supervision tap 위치.
+# 기본: 인코더 3-tap [enc_s8, enc_s16, enc_s32]  vs  본 대조군: 디코더 P분기 1-tap [p8]
+# lambda_aux 에 p8 항목이 이미 있으므로 V9(전 tap 존재)를 만족한다.
+_base: ../s0_rgb_aihub092.yaml
+model:
+  aux_taps: [p8]

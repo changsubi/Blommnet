@@ -1,0 +1,53 @@
+# ═══════════════════════════════════════════════════════════════════════
+#  S0-Spec — 235 다중분광 칩(3×3) Chl-a 회귀 사전학습   [헌법 C-3, 01 §6, 05 §5.3]
+#
+#  ★ CPU 로 오늘 실행 가능한 유일한 학습이다 (SpecMLP 1,089 params).
+#  ★ 이 config 는 `tools/train.py` 가 아니라 **`tools/train_spec.py`** 로 실행한다.
+#
+#  선행 조건: tools/build_k235_cache.py 로 npz 캐시 생성 (01 §7.6)
+#
+#  실행:
+#    cd <repo_root>
+#    CUDA_VISIBLE_DEVICES="" python -m bloomnet.tools.train_spec \
+#        --config bloomnet/configs/s0_spec_k235.yaml
+#
+#  ★ 이식(transplant)은 기본 **비활성**이다 (정정 A-19). 밴드 순서가 외부 문서로 확정되기
+#    전에는(spec.band_order_confirmed) V18 이 이식을 거부한다. 러너는 게이트 결과와
+#    band_order 상태를 JSON 으로 남기되 SPS 로 가중치를 옮기지 않는다.
+# ═══════════════════════════════════════════════════════════════════════
+_base: _base.yaml
+
+mode: s0_spec
+
+data:
+  dataset: k235
+  num_classes: 2                   # seg 경로는 쓰지 않는다 (칩 회귀 전용)
+  modalities: [rgb]                # V4 — 'rgb' 는 항상 필요. 실제 seg 학습은 하지 않는다
+  sensor: none                     # 235 는 RedEdge-MX 이지만 msi 스케일 계약(R4')은 npz 캐시가 처리
+  chl:
+    space: log1p                   # (고정) X-14
+
+spec:
+  npz: data/cache/k235_ms.npz
+  band_order: [blue, green, red, rededge1, nir]   # 가설 H2 [01 U-1] — 미확정
+  band_order_confirmed: false      # ★ 구축활용가이드 확보 시에만 true (V18)
+  use_blue: false                  # X-03 — M3M 에 blue 가 없으므로 공통 4밴드로 학습
+  quality_filter: true             # WaterTemp>40 / ODOMg>90 / Chla<0.1 / Chla>200 제거 (실측 9.58 %)
+  train_sites: [BES, CNH, GDK, HNM, SHC, YJD]
+  val_sites: [CSC, JAD]            # X-22
+  loso: true                       # 8-fold leave-one-site-out (01 §6.8)
+  head_out: 1                      # 1 -> SmoothL1+rank / 2 -> Huber-NLL (X-09)
+  huber_beta: 0.3
+  rank_weight: 0.2
+  rank_margin: 0.1
+  bio_gain: 4.0
+  epochs: 300
+  batch_size: 512
+  lr: 3.0e-3
+  weight_decay: 1.0e-4
+  device: cpu                      # 1,089 params — GPU 불필요 (헌법 C-5.2 준수에도 유리)
+  transplant:
+    enabled: false                 # ★ 명시적 opt-in 으로만 (정정 A-19). V12/V18 이 전제를 강제
+    gate_g1_rmse: 0.750            # 전역평균 0.827 / ridge 0.810 대비 (01 [M9], 정정 B-29)
+    gate_g2_spearman: 0.30
+    gate_g3_f1_at15: 0.60

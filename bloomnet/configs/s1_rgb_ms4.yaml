@@ -1,0 +1,87 @@
+# ═══════════════════════════════════════════════════════════════════════
+#  S1 — RGB + MS4(M3M) + bio 파인튜닝   [헌법 C-3, 05 §5.2]
+#
+#  ★ 오늘 실행 불가 — 유니바 픽셀 라벨(train 1,750 / val 375 / test 375)이 아직 없다 [U-3].
+#    본 파일은 라벨 도착 즉시 쓸 수 있도록 동결한 계획값이다.
+#
+#  ★★ 실행 전 반드시 해소해야 하는 선결 조건 2건
+#     (1) M-13 / 정정 A-2: `data.msi.k_sensor` 는 잠정값(K_SENSOR["m3m"]=3.5e3)이다.
+#         data/drone_m3m.py 실측에 따르면 이 값으로는 로더 하드검증 [H1]
+#         (1e-3 < median(msi[msi>0]) < 1.0) 을 **상한에서 위반**해 RuntimeError 가 난다.
+#         `tools/calibrate_k_sensor.py` 로 수면 ROI median 기반 재산출 → constants.K_SENSOR
+#         갱신(리뷰 1회) 전까지 msi 경로는 열리지 않는다.
+#     (2) 유니바 라벨 어댑터. 현재 `data.dataset` 선택지는 {aihub092, k235, drone_m3m} 뿐이다.
+#         라벨 형식 확정 후 `data/unibar.py`(L2) 를 추가하고 여기 `dataset` 을 바꾼다.
+#         분할은 shot 단위가 아니라 **session 단위** 여야 한다 (05 §5.2.1, 근접 중복 70 %).
+#
+#  실행 (라벨·k_sensor 확보 후):
+#    cd <repo_root>
+#    CUDA_VISIBLE_DEVICES=0 python -m bloomnet.tools.train \
+#        --config bloomnet/configs/s1_rgb_ms4.yaml \
+#        --init_from outputs/<s0_rgb_run>/best.pt
+# ═══════════════════════════════════════════════════════════════════════
+_base: _base.yaml
+
+mode: s1_rgb_ms4
+
+data:
+  dataset: aihub092                # ← 라벨 어댑터 도착 시 교체 (위 선결 조건 (2))
+  root: data/s1_unibar
+  split_variant: group
+  num_classes: 2                   # {bg, algae}. 헌법 C-6 R7 — num_classes 가변
+  modalities: [rgb, msi, bio]
+  sensor: m3m                      # G 560 / R 650 / RE 730 / NIR 860 (4밴드, blue 없음)
+  band_ids: null                   # null -> SENSOR_BAND_IDS["m3m"] = canonical slot (1,2,3,5)
+  train_size: [512, 512]
+  eval_size: [1024, 1024]          # '2배 확대'가 아니라 4배 넓은 지면 (02 §1.6)
+  bio:
+    kind: mci                      # x_bio = [NDCI, MCI_norm] (X-01/X-27, 정정 B-3)
+    source: msi
+  msi:
+    k_sensor: null                 # null -> K_SENSOR["m3m"]. ★ 위 선결 조건 (1) 참조
+  augment:
+    geometric:
+      scale_range: [0.75, 1.5]     # 05 §5.2.4 — GSD 물리 prior 보존. 원본이 5280×3956 이라 패딩 없음
+    photometric:
+      brightness: 0.2              # RGB 에만. msi/bio/ir/pol 광도 증강은 전면 금지 (01 §7.4.2)
+      contrast: 0.2
+      saturation: 0.2
+      hue: 0.05
+  sampler:
+    kind: shuffle                  # 2클래스라 RFS 근거(12클래스 롱테일)가 사라진다
+
+model:
+  drop_path_rate: 0.2              # S0 의 0.1 → 강화 (저데이터)
+  depths:
+    spec: [2, 2, 4, 3]             # ★ 라벨 train < 1,000 장이면 [1,1,2,1] 로 낮춘다 (정정 B-28 용량 게이트)
+
+loss:
+  ohem_thresh: 0.9                 # 저데이터 → 약한 마이닝 (05 §4.4)
+  ohem_keep_frac: 0.0625
+  aux_decay: true                  # 마지막 20 % 에폭에서 λ_aux → 0 선형
+
+optim:
+  lr: 6.0e-4                       # main = decoder + heads + fresh_encoder (05 §5.2.2 Phase B)
+  lr_encoder: 6.0e-5               # pretrained_encoder = PPN patch embed + RGB path (49.8 % 뿐)
+  physics_lr_mult: 5.0             # 6.0e-4 × 5 = 3.0e-3 (05 §5.2.2 physics scalars)
+  weight_decay: 0.05               # S0 의 0.01 → 강화
+  grad_accum_steps: 2              # batch 8 × 2 = 실효 16 (BN 통계 안정화)
+
+schedule:
+  epochs: 80
+  batch_size: 8
+  warmup_epochs: 10
+  freeze_stages_epochs: 10         # Phase A: 스템·인코더·BMEF 동결, 헤드만 정착
+
+train:
+  amp: bf16
+  ema:
+    decay: 0.999                   # 짧은 학습에 맞게 (S0 의 0.9998 → 하향)
+  early_stopping:
+    patience: 15
+    metric: val_miou_ema           # ★ 라벨 도착 후 'val algae IoU' 로 교체 (05 §5.2.3)
+  modality_dropout:
+    enabled: true                  # ★ 정정 B-11(c) — S1/S2 필수. 03 §3.3.1 독립입력 실패모드 대책
+    mode: subset
+    p_full: 0.5
+    p_bernoulli: 0.15

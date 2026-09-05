@@ -1,0 +1,51 @@
+# ═══════════════════════════════════════════════════════════════════════
+#  S0-RGB — AI Hub 092(aihub092) 도메인 근접 사전학습   [헌법 C-3, 05 §5.1]
+#
+#  오늘 실행 가능. 녹조 라벨이 없는 상태에서 하천 항공 RGB 표현을 96,340장으로 학습해
+#  S1(1,750장)의 저데이터 문제를 완화한다.
+#
+#  ★ 선행 조건 (06 §7.3 B6):
+#     1) tools/link_aihub092.py   — 52 GB 복사 없이 심볼릭 링크 트리 생성
+#     2) tools/make_group_split.py — flight-line 군 분할 (data/aihub092_group)
+#        기본 분할이 group 인 이유는 01 §7.3 [M3] 이 asis 분할의 누수를 실측했기 때문이다.
+#     3) tools/compute_class_stats.py — RFS 입력(class_stats.json). 없으면 라벨 전수 스캔(느림)
+#
+#  실행:
+#    cd <repo_root>
+#    CUDA_VISIBLE_DEVICES=0 python -m bloomnet.tools.train \
+#        --config bloomnet/configs/s0_rgb_aihub092.yaml
+# ═══════════════════════════════════════════════════════════════════════
+_base: _base.yaml
+
+mode: s0_rgb
+
+data:
+  dataset: aihub092
+  root: data/aihub092_group        # 누수 없는 군 분할. asis 비교는 --set data.root=data/aihub092_asis
+  split_variant: group
+  num_classes: 12                  # 01 §3.3 안 A (12클래스 그대로)
+  modalities: [rgb]                # S0 는 rgb path 하나뿐 (spec/phys 모듈은 생성되지 않는다)
+  sensor: none
+  train_size: [512, 512]
+  eval_size: [512, 512]            # ★ aihub092 원본이 정확히 512² 다 (05 §5.1.6 val/test 원본)
+  sampler:
+    kind: rfs                      # 05 §4.3 채택 전략 #1. class 9 노출 4.66배, 에폭 비용 +4.7 %
+    repeat_t: 0.05
+    class_stats: null              # tools/compute_class_stats.py 산출 JSON 을 넣으면 스캔을 건너뛴다
+
+loss:
+  ohem_thresh: 0.7                 # S0=0.7 / S1=0.9 (05 §4.4)
+
+optim:
+  lr: 4.0e-4                       # from-scratch @ batch 32. 배치 변경 시 lr = 4e-4 × (B/32)
+  lr_encoder: null                 # S0 는 전부 랜덤 초기화 → 인코더 차등 lr 근거 없음 (05 §5.1.2)
+
+schedule:
+  epochs: 60
+  batch_size: 32                   # ★ 추정치. 첫 실행 전 05 §5.1.8 절차로 실측할 것 (U-4)
+  warmup_epochs: 2                 # 절대 iteration 은 런타임 유도 (정정 A-18 / B-26)
+
+train:
+  amp: bf16
+  modality_dropout:
+    enabled: false                 # path 가 1개라 무의미

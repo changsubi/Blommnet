@@ -1,0 +1,83 @@
+# ═══════════════════════════════════════════════════════════════════════
+#  S2-Full — 전 모달 (rgb + msi + bio + ir + pol)   [헌법 C-3]
+#
+#  ★ 오늘 실행 불가. 열화상·편광 센서 자체가 없다 (헌법 C-2: x_ir 파일 0개, x_pol 0개).
+#    본 파일은 "센서 도입 시 코드 변경 없이 켜진다"는 계약을 문서화한 것이다.
+#    S2 의 유일한 오늘의 용도는 **전 모달 경로의 CPU 스모크**다:
+#
+#      cd <repo_root>
+#      CUDA_VISIBLE_DEVICES="" python -m bloomnet.tools.train \
+#          --config bloomnet/configs/s2_full.yaml --build_only --device cpu
+#
+#  ★ rot90 이 false 인 이유: AoLP 는 회전 시 θ→θ+90° 변환이 필요하다 (01 §7.4.1).
+#    transforms 가 변환을 구현하고 있어도 V7 은 명시적 opt-in(allow_rot90_with_pol)을 요구한다.
+#    true 로 두면 로드 시 RuntimeWarning 과 함께 강제로 false 가 된다.
+# ═══════════════════════════════════════════════════════════════════════
+_base: _base.yaml
+
+mode: s2_full
+
+data:
+  dataset: aihub092                # ← S1 과 동일하게 라벨 어댑터 도착 시 교체
+  root: data/s2_full
+  split_variant: group
+  num_classes: 2
+  modalities: [rgb, msi, bio, ir, pol]
+  sensor: m3m                      # 열화상·편광 페이로드 확정 시 갱신
+  phys_slot_ids: [0, 1, 2, 3]      # IR, DOLP, AOLP_SIN, AOLP_COS (X-04)
+  train_size: [512, 512]
+  eval_size: [1024, 1024]
+  bio:
+    kind: mci
+    source: msi
+  pol:
+    encoding: sincos               # x_pol 3ch = [DoLP, sin2θ, cos2θ] (정정 B-4)
+  msi:
+    k_sensor: null                 # ★ S1 과 동일한 M-13 선결 조건
+  augment:
+    geometric:
+      rot90: false                 # ★ V7 — pol 존재 시 비활성 (AoLP 회전 규약)
+      allow_rot90_with_pol: false
+      scale_range: [0.75, 1.5]
+    photometric:
+      brightness: 0.2
+      contrast: 0.2
+      saturation: 0.2
+
+model:
+  drop_path_rate: 0.2
+  ppn:
+    use_pol: true                  # ★ V6 자동 동기화 값과 일치해야 한다 ('pol' in modalities)
+    inpaint_ch: 16
+    dilations: [1, 2, 4]
+    gate_a_init: 20.0              # a = softplus(â) (헌법 R3 — 구 a=10,b=-3 은 깨끗한 수체 18 % 오검출)
+    gate_b_init: -5.0
+
+loss:
+  ohem_thresh: 0.9
+  aux_decay: true
+
+optim:
+  lr: 6.0e-4
+  lr_encoder: 6.0e-5
+  physics_lr_mult: 5.0
+  weight_decay: 0.05
+  grad_accum_steps: 2
+
+schedule:
+  epochs: 80
+  batch_size: 8
+  warmup_epochs: 10
+  freeze_stages_epochs: 10
+
+train:
+  amp: bf16
+  ema:
+    decay: 0.999
+  early_stopping:
+    patience: 15
+  modality_dropout:
+    enabled: true                  # ★ 정정 B-11(c) — S2 필수
+    mode: subset
+    p_full: 0.5
+    p_bernoulli: 0.15

@@ -1,0 +1,5 @@
+# A3 (05 §5.1.7, 위험 I-24) — LayerScale γ 초기값.  0.01 vs 0.1
+# 판정: 수렴 속도(첫 10 에폭 val mIoU). stage1~2 만 올리고 3~4 는 유지한다 [X-19].
+_base: ../s0_rgb_aihub092.yaml
+model:
+  layer_scale_init: [0.1, 0.1, 0.01, 0.01]

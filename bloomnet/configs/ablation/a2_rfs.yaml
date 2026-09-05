@@ -1,0 +1,7 @@
+# A2 (05 §5.1.7) — Repeat-Factor Sampling 기여 검증.  t 0.05 vs 0.0
+# t=0 이면 r_i = max(1, sqrt(0/f)) = 1 이 되어 실효적으로 shuffle 과 같다.
+# 판정 기준: class 9 (317/96,340 = 0.329 %) IoU > 0 달성 여부.
+_base: ../s0_rgb_aihub092.yaml
+data:
+  sampler:
+    repeat_t: 0.0

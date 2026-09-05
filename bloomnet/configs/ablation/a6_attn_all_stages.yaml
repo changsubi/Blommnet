@@ -1,0 +1,7 @@
+# A6 (02 §3.1) — LiteMLA 를 stage1~2 까지 확장.
+# 비용: +100,032 params / +874.5 MMAC @512² (02 §3.1 표의 합계 '100,224' 는 산술 오류,
+#       성분 25,152 + 74,880 = 100,032 이 참값 — modules/blocks_ela.py 구현자 실측).
+_base: ../s0_rgb_aihub092.yaml
+model:
+  ela:
+    attn_stages: [1, 2, 3, 4]

@@ -1,0 +1,382 @@
+# ═══════════════════════════════════════════════════════════════════════
+#  BloomNet 기본 설정 (스키마 정본) — 06 §4.2
+#
+#  ★ 이 파일은 손으로 고치지 않는다. dataclass 트리가 정본이고 이 파일은 그 덤프본이다:
+#        cd <repo_root>
+#        python -m bloomnet.config --dump-base --out bloomnet/configs/_base.yaml
+#     여기 없는 키는 로드 시 ValueError 로 거부된다(미지 키 거부, 06 §4.1 step 3).
+#     값의 근거·선택지 주석은 bloomnet/config.py 의 각 dataclass 에 있다.
+# ═══════════════════════════════════════════════════════════════════════
+mode: s0_rgb
+seed: 1234
+device: cuda
+output_dir: outputs
+run_name: null
+dry_run: false
+data:
+  dataset: aihub092
+  root: data/aihub092_group
+  split_variant: group
+  num_classes: 12
+  ignore_index: 255
+  modalities:
+  - rgb
+  sensor: none
+  band_ids: null
+  phys_slot_ids:
+  - 0
+  - 1
+  - 2
+  - 3
+  train_size:
+  - 512
+  - 512
+  eval_size:
+  - 1024
+  - 1024
+  num_workers: 12
+  prefetch_factor: 4
+  pin_memory: true
+  bio:
+    kind: mci
+    source: none
+    eps: 1.0e-06
+    clamp:
+    - -1.0
+    - 1.0
+  pol:
+    encoding: sincos
+  msi:
+    clamp:
+    - 0.0
+    - 1.5
+    apply_r4_irradiance: true
+    apply_r4p_k_sensor: true
+    k_sensor: null
+    apply_r6_coregister: true
+  boundary:
+    source: dataset
+    radius:
+      512: 1
+      1024: 2
+    stride: 4
+  chl:
+    space: log1p
+    supervision: none
+    max_dt_hours: 6.0
+    max_dist_m: 100.0
+  augment:
+    geometric:
+      scale_range:
+      - 1.0
+      - 2.0
+      hflip_p: 0.5
+      vflip_p: 0.5
+      rot90: true
+      allow_rot90_with_pol: false
+      cat_max_ratio: 0.75
+      cat_max_attempts: 10
+    photometric:
+      enabled: true
+      brightness: 0.25
+      contrast: 0.25
+      saturation: 0.25
+      hue: 0.05
+      p: 0.5
+      blur_p: 0.0
+      noise_std: 0.0
+    rare_class:
+      ids: []
+      crop_prob: 0.0
+      min_pixels: 0
+      attempts: 10
+  sampler:
+    kind: shuffle
+    repeat_t: 0.05
+    class_stats: null
+model:
+  channels:
+  - 32
+  - 64
+  - 160
+  - 320
+  layer_scale_init:
+  - 0.01
+  - 0.01
+  - 0.01
+  - 0.01
+  drop_path_rate: 0.1
+  norm: bn
+  null_embedding: false
+  depths:
+    rgb:
+    - 2
+    - 2
+    - 4
+    - 3
+    spec:
+    - 2
+    - 2
+    - 4
+    - 3
+    phys:
+    - 1
+    - 1
+    - 2
+    - 1
+  ppn:
+    use_pol: false
+    always_build: false
+    inpaint_ch: 16
+    dilations:
+    - 1
+    - 2
+    - 4
+    gate_a_init: 20.0
+    gate_b_init: -5.0
+    rgb_proxy_gate: false
+  sps:
+    num_slots: 6
+    bio_init_gain: 4.0
+  tps:
+    num_slots: 4
+  ela:
+    attn_stages:
+    - 3
+    - 4
+    head_dim:
+    - 16
+    - 16
+    - 32
+    - 32
+    scales:
+    - 3
+    - 5
+    expand_ratio: 4
+    eps: 1.0e-05
+  biospec:
+    mlp_ratio:
+    - 8
+    - 8
+    - 4
+    - 4
+    se_ratio: 4
+    dilations:
+    - - 1
+      - 3
+      - 5
+    - - 1
+      - 3
+      - 5
+    - - 1
+      - 2
+      - 4
+    - - 1
+      - 2
+      - 3
+    beta_init: 0.1
+  physlite:
+    expand_ratio: 2
+    dw_kernel:
+    - 3
+    - 3
+    - 5
+    - 5
+    se_ratio: 8
+    se_min: 8
+  bmef:
+    stages:
+    - 1
+    - 2
+    - 3
+    - 4
+    stage1_identity: false
+    se_reduction: 8
+    se_min_channels: 8
+    logtau_range: 4.0
+    chan_logtau_range: 2.0
+    r_floor: 0.05
+    kappa_init:
+    - 1.0
+    - 0.5
+    - 0.018
+    gpol_pool: area
+    norm_mode: l1
+    norm_layer: bn
+    enable_feedback: true
+    warmup_epochs: 10
+  decoder:
+    dec_ch: 128
+    bd_ch: 32
+    ppm_branch: 96
+    dot_scale: null
+    zero_init_residual: true
+  heads:
+    seg_mid: 128
+    reg_trunk_mid: 64
+    chl_prior_log1p_mean: 1.7559
+    edge_prior_pos: 0.03
+    unc_use_vacuity: false
+    enable_edge_head: true
+  aux_taps:
+  - enc_s8
+  - enc_s16
+  - enc_s32
+  siam:
+    enabled: false
+    teacher: null
+    channels:
+      s3:
+      - 160
+      - 320
+      s4:
+      - 320
+      - 512
+      dec:
+      - 128
+      - 256
+loss:
+  lambda_seg: 1.0
+  lambda_reg: 0.5
+  lambda_bd: 20.0
+  lambda_bas: 1.0
+  lambda_aux:
+    enc_s8: 0.2
+    enc_s16: 0.4
+    enc_s32: 0.4
+    p8: 0.4
+  lambda_siam: 0.0
+  w_dice: 0.4
+  ohem_thresh: 0.7
+  ohem_keep_frac: 0.0625
+  bas_tau: 0.8
+  huber_beta: 1.0
+  unc_clamp:
+  - -7.0
+  - 7.0
+  aux_loss_stride: 1
+  u_warm_frac: 0.3
+  u_ramp_frac: 0.2
+  class_weight: null
+  aux_decay: false
+  debug_assert: false
+optim:
+  name: adamw
+  lr: 0.0004
+  lr_encoder: null
+  physics_lr_mult: 50.0
+  weight_decay: 0.01
+  betas:
+  - 0.9
+  - 0.999
+  eps: 1.0e-08
+  grad_clip_norm: 1.0
+  grad_accum_steps: 1
+schedule:
+  epochs: 60
+  batch_size: 32
+  scheduler: PolynomialLR
+  scheduler_kwargs:
+    power: 0.9
+  warmup_epochs: 2
+  warmup_iters: null
+  warmup_start_factor: 0.001
+  freeze_stages_epochs: 0
+  iters_per_epoch: null
+train:
+  amp: bf16
+  loss_dtype: fp32
+  ema:
+    enabled: true
+    decay: 0.9998
+    start_epoch: 5
+  early_stopping:
+    metric: val_miou_ema
+    patience: 10
+    min_delta: 0.0001
+    mode: max
+  modality_dropout:
+    enabled: false
+    mode: subset
+    p_full: 0.5
+    p_bernoulli: 0.15
+  nonfinite_skip_max_per_epoch: 10
+  init_from: null
+  resume_from: null
+  deterministic: true              # torch deterministic algorithms (학습 재현성). 속도가 중요하면 --set train.deterministic=false
+eval:
+  miou_convention: exclude_absent
+  boundary_tolerances:
+  - 1
+  - 3
+  - 5
+  alarm_thresholds:
+  - 15.0
+  - 25.0
+  - 100.0
+  report_splits:
+  - asis
+  - group
+  tta:
+    enabled: false
+    scales:
+    - 1.0
+    hflip: false
+spec:
+  npz: data/cache/k235_ms.npz
+  band_order:
+  - blue
+  - green
+  - red
+  - rededge1
+  - nir
+  band_order_confirmed: false
+  use_blue: false
+  quality_filter: true
+  train_sites:
+  - BES
+  - CNH
+  - GDK
+  - HNM
+  - SHC
+  - YJD
+  val_sites:
+  - CSC
+  - JAD
+  loso: true
+  head_out: 1
+  huber_beta: 0.3
+  rank_weight: 0.2
+  rank_margin: 0.1
+  bio_gain: 4.0
+  mci_c: null
+  epochs: 300
+  batch_size: 512
+  lr: 0.003
+  weight_decay: 0.0001
+  device: cpu
+  transplant:
+    enabled: false
+    patch_embed: true
+    raw_bands: true
+    gate_g1_rmse: 0.75
+    gate_g2_spearman: 0.3
+    gate_g3_f1_at15: 0.6
+deploy:
+  input_hw:
+  - 1024
+  - 1024
+  opset: 17
+  dynamic_batch: true
+  precision: fp16
+  fp32_forced:
+  - bmef.fusion
+  - encoder.*.litemla.attention
+  fp16_locked:
+  - chl_head
+  - unc_head
+  - pagfm
+  - encoder.*.litemla.attention
+  input_names: null
+  use_dynamo: false
+  chl_max_mgm3: 500.0
