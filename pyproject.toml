@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bloomnet"
+version = "0.1.0"
+description = "BloomNet: multimodal on-board segmentation model for algal bloom (green tide) mapping from drones"
+requires-python = ">=3.9"
+dependencies = ["torch>=2.0", "torchvision", "numpy", "pillow", "pyyaml", "tqdm", "scipy", "imageio-ffmpeg"]
+
+[project.optional-dependencies]
+sam3 = ["transformers>=5.0"]
+dev = ["pytest", "ruff"]
+
+[tool.setuptools.packages.find]
+include = ["bloomnet*"]

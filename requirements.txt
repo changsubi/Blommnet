@@ -1,0 +1,12 @@
+# 핵심 (학습·추론)
+torch>=2.0
+torchvision
+numpy
+pillow
+pyyaml
+tqdm
+scipy
+# 동영상 입출력 (자체 ffmpeg 바이너리 포함)
+imageio-ffmpeg
+# 선택: SAM3 가상 라벨 생성 (scripts/kwater/sam3_masks.py, render_video.py)
+transformers>=5.0
