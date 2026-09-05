@@ -20,8 +20,6 @@
 
 ## 2. 구조
 
-![architecture](docs/figures/architecture.png)
-
 - **3경로 인코더**: RGB(PPN), 분광(SPS, 엽록소 지수형 BioSpec 블록), 물리(TPS, 열·편광 PhysLite 블록). 존재하는 센서의 경로만 실행합니다.
 - **BMEF (Bayesian Modality Evidence Fusion)**: 경로별 특징을 증거로 보고 신뢰도에 따라 가중 합산합니다. 가중치의 합은 항상 1이므로 센서가 빠져도 출력 크기가 흔들리지 않습니다.
 - **PID 3분기 디코더**: 세부(P), 문맥(I, PAPPM), 경계(D) 분기를 PagFM/Bag 으로 합쳐 해상도를 복원합니다.
